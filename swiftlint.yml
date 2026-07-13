@@ -1,0 +1,91 @@
+disabled_rules:
+  - trailing_whitespace
+  - nested_types
+  
+opt_in_rules:
+  - empty_count
+  - first_where
+  - sorted_imports
+  - prefer_self_type_over_type_of_self
+  - closure_spacing
+  - explicit_init
+  - redundant_type_annotation
+  - force_unwrapping
+  - file_length
+  - type_body_length
+  - function_body_length
+  - cyclomatic_complexity
+  - identifier_name
+  - empty_string
+  - missing_docs
+
+analyzer_rules:
+  - unused_import
+  - unused_declaration
+  - explicit_self
+  - closure_end_indentation
+
+included:
+  - jobfinder
+  - Packages
+
+excluded:
+  - ".build"
+  - "build"
+  - "DerivedData"
+  - "**/.swiftpm"
+  - "**/Pods"
+  - "**/*.xcodeproj"
+  - "**/*.xcworkspace"
+  - "**/Preview Content"
+  - "Packages/**/Tests/**"
+
+line_length:
+  warning: 140
+  error: 200
+  ignores_comments: true
+  ignores_function_declarations: true
+  ignores_urls: true
+
+file_length:
+  warning: 400
+  error: 600
+  ignore_comment_only_lines: true
+
+type_body_length:
+  warning: 300
+  error: 500
+
+function_body_length:
+  warning: 50
+  error: 100
+
+cyclomatic_complexity:
+  warning: 10
+  error: 20
+  ignores_case_statements: true
+
+identifier_name:
+  min_length: 2
+  excluded:
+    - i
+    - j
+    - k
+    - x
+    - y
+    - z
+    - id
+    - to
+    - vc
+    - vm
+    - v
+    - cv
+    - tv
+    - rx
+    - db
+
+reporter: "github-actions-logging"
+
+cache:
+  disabled: false
+  serialized_cache: true

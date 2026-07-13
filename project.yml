@@ -1,0 +1,128 @@
+name: jobfinder
+
+options:
+  bundleIdPrefix: com.gabriel.jobfinder
+  deploymentTarget:
+    iOS: "16.0"
+  developmentLanguage: en
+  groupSortPosition: top
+  generateEmptyDirectories: true
+  xcodeVersion: "15.4"
+  createIntermediateGroups: true
+
+configs:
+  Debug: debug
+  Release: release
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+    TARGETED_DEVICE_FAMILY: "1,2"
+    IPHONEOS_DEPLOYMENT_TARGET: "16.0"
+    SWIFT_TREAT_WARNINGS_AS_ERRORS: NO
+    CLANG_ENABLE_MODULES: YES
+    SWIFT_STRICT_CONCURRENCY: minimal
+  configs:
+    Debug:
+      SWIFT_OPTIMIZATION_LEVEL: -Onone
+      SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG
+      ENABLE_TESTABILITY: YES
+      GCC_DYNAMIC_NO_PIC: NO
+      DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
+    Release:
+      SWIFT_OPTIMIZATION_LEVEL: -O
+      SWIFT_COMPILATION_MODE: wholemodule
+      ENABLE_NS_ASSERTIONS: NO
+      DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
+
+packages:
+  Components:
+    path: Packages/Components
+  NetworkLayer:
+    path: Packages/NetworkLayer
+  ReduxCore:
+    path: Packages/ReduxCore
+  VacancyView:
+    path: Packages/VacancyView
+
+targets:
+
+  jobfinder:
+    type: application
+    platform: iOS
+
+    sources:
+      - path: jobfinder
+        excludes:
+          - "**/.DS_Store"
+    
+    postCompileScripts:
+      - name: SwiftLint
+        script: |
+          if which swiftlint >/dev/null; then
+            swiftlint
+          else
+            echo "warning: SwiftLint not installed, download from https://github.com/realm/SwiftLint"
+          fi
+
+    dependencies:
+      - package: Components
+        product: Components
+      - package: Components
+        product: ViewModifiers
+      - package: Components
+        product: Extensions
+      - package: Components
+        product: FirebaseData
+      - package: Components
+        product: Settings
+      - package: NetworkLayer
+        product: NetworkLayer
+      - package: ReduxCore
+        product: ReduxCore
+      - package: VacancyView
+        product: VacancyModule
+
+    info:
+      path: Info.plist
+      properties:
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UIUserInterfaceStyle: Light
+        UIViewControllerBasedStatusBarAppearance: false
+        UIStatusBarStyle: UIStatusBarStyleBackContent
+        UILaunchStoryboardName: DetranLaunchScreen
+        ITSAppUsesNonExemptEncryption: false
+        NSAllowsArbitraryLoads: true
+        UIRequiresFullScreen: false
+        UIRequiresPersistentWiFi: true
+        UIApplicationSupportsIndirectInputEvents: true
+        ROUTER_BASE_URL: $(ROUTER_BASE_URL)
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleLocalizations:
+          - "en"
+
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.gabriel.jobfinder.homolog
+        PRODUCT_NAME: jobfinder
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        DEVELOPMENT_TEAM: ""
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_IDENTITY: "Apple Development"
+
+    scheme:
+      testTargets: []
+      gatherCoverageData: true
+      commandLineArguments: {}
+      environmentVariables: {}
+      preActions: []
+      postActions: []
