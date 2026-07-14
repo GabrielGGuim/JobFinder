@@ -1,0 +1,8 @@
+# Appfile — jobfinder
+# NÃO temos Apple Developer Program.
+# Estes campos ficam vazios; o IPA sai em modo ad-hoc.
+
+app_identifier("com.gabriel.jobfinder.homolog")
+apple_id("")           # sem Apple ID cadastrado
+team_id("")            # sem team ID
+itc_team_id("")        # sem iTunes Connect team

@@ -13,6 +13,7 @@ options:
 configs:
   Debug: debug
   Release: release
+  AdHoc: release
 
 settings:
   base:
@@ -36,6 +37,14 @@ settings:
       SWIFT_COMPILATION_MODE: wholemodule
       ENABLE_NS_ASSERTIONS: NO
       DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
+    AdHoc:
+      SWIFT_OPTIMIZATION_LEVEL: -O
+      SWIFT_COMPILATION_MODE: wholemodule
+      ENABLE_NS_ASSERTIONS: NO
+      DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
+      # Permite sobrescrever via env no CI:
+      #   CODE_SIGNING_ALLOWED=NO  → IPA sem assinatura
+      #   CODE_SIGNING_ALLOWED=YES → IPA ad-hoc (com cert local)
 
 packages:
   Components:
@@ -118,6 +127,17 @@ targets:
         DEVELOPMENT_TEAM: ""
         CODE_SIGN_STYLE: Automatic
         CODE_SIGN_IDENTITY: "Apple Development"
+        # Permite desabilitar code signing via env var no CI
+        # (útil quando não há cert disponível no runner).
+        CODE_SIGNING_ALLOWED: $(CODE_SIGNING_ALLOWED)
+        CODE_SIGNING_REQUIRED: $(CODE_SIGNING_REQUIRED)
+      configs:
+        AdHoc:
+          # AdHoc = release-like, sem symbols exportados
+          SWIFT_OPTIMIZATION_LEVEL: -O
+          # Por padrão NÃO assina — CI pode ligar
+          CODE_SIGNING_ALLOWED: $(CODE_SIGNING_ALLOWED)
+          CODE_SIGNING_REQUIRED: $(CODE_SIGNING_REQUIRED)
 
     scheme:
       testTargets: []
