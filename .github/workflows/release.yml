@@ -45,7 +45,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Select Xcode 15.4
+      - name: Select Xcode 16.2
         run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
 
       # Versão derivada da tag (se for tag) ou do project.yml
