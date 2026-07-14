@@ -15,6 +15,19 @@ configs:
   Release: release
   AdHoc: release
 
+schemes:
+  jobfinder:
+    build:
+      targets:
+        jobfinder: all
+    test:
+      config: Debug
+      targets:
+        - jobfinderTests
+        # - jobfinderUITests   # se também tiver testes de UI
+    run:
+      config: Debug
+
 settings:
   base:
     SWIFT_VERSION: "5.0"
@@ -42,9 +55,6 @@ settings:
       SWIFT_COMPILATION_MODE: wholemodule
       ENABLE_NS_ASSERTIONS: NO
       DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
-      # Permite sobrescrever via env no CI:
-      #   CODE_SIGNING_ALLOWED=NO  → IPA sem assinatura
-      #   CODE_SIGNING_ALLOWED=YES → IPA ad-hoc (com cert local)
 
 packages:
   Components:
@@ -58,6 +68,18 @@ packages:
 
 targets:
 
+  jobfinderTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: jobfinderTests
+    dependencies:
+      - target: jobfinder
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.gabriel.jobfinder.tests
+        GENERATE_INFOPLIST_FILE: YES
+
   jobfinder:
     type: application
     platform: iOS
@@ -66,7 +88,7 @@ targets:
       - path: jobfinder
         excludes:
           - "**/.DS_Store"
-    
+
     postCompileScripts:
       - name: SwiftLint
         script: |
@@ -127,22 +149,10 @@ targets:
         DEVELOPMENT_TEAM: ""
         CODE_SIGN_STYLE: Automatic
         CODE_SIGN_IDENTITY: "Apple Development"
-        # Permite desabilitar code signing via env var no CI
-        # (útil quando não há cert disponível no runner).
         CODE_SIGNING_ALLOWED: $(CODE_SIGNING_ALLOWED)
         CODE_SIGNING_REQUIRED: $(CODE_SIGNING_REQUIRED)
       configs:
         AdHoc:
-          # AdHoc = release-like, sem symbols exportados
           SWIFT_OPTIMIZATION_LEVEL: -O
-          # Por padrão NÃO assina — CI pode ligar
           CODE_SIGNING_ALLOWED: $(CODE_SIGNING_ALLOWED)
           CODE_SIGNING_REQUIRED: $(CODE_SIGNING_REQUIRED)
-
-    scheme:
-      testTargets: []
-      gatherCoverageData: true
-      commandLineArguments: {}
-      environmentVariables: {}
-      preActions: []
-      postActions: []
