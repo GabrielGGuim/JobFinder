@@ -117,6 +117,8 @@ jobs:
         env:
           SCHEME: ${{ env.SCHEME }}
           CONFIGURATION: ${{ env.CONFIGURATION }}
+          FASTLANE_XCODEBUILD_SETTINGS_TIMEOUT: 60
+          FASTLANE_XCODEBUILD_SETTINGS_RETRIES: 5
         run: bundle exec fastlane ios test
 
       - name: Upload test results
