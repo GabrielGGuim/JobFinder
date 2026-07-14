@@ -53,6 +53,7 @@ platform :ios do
   # ─────────────────────────────────────────────────────────
   desc "Run unit tests"
   lane :test do
+    bootstrap unless File.exist?(PROJECT)   # já existe essa lógica em build_unsigned, replique aqui
     run_tests(
       project: PROJECT,
       scheme: SCHEME,
