@@ -128,9 +128,6 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-  # ─────────────────────────────────────────────────────────
-  #  3) Danger — review friendly (só em PR)
-  # ─────────────────────────────────────────────────────────
   danger:
     name: Danger
     runs-on: ubuntu-latest
