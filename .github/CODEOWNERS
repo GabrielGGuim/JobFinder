@@ -1,0 +1,18 @@
+# CODEOWNERS — jobfinder
+# Quem aprova mudanças em cada área do projeto.
+# Troque @GabrielGGuim pelo seu handle ou da sua equipe.
+
+# Default: tudo é seu
+*                                       @GabrielGGuim
+
+# CI/CD — owner principal
+/.github/                               @GabrielGGuim
+/fastlane/                              @GabrielGGuim
+/project.yml                            @GabrielGGuim
+/ci_scripts/                            @GabrielGGuim
+
+# Packages — owner por módulo
+/Packages/Components/                   @GabrielGGuim
+/Packages/NetworkLayer/                 @GabrielGGuim
+/Packages/ReduxCore/                    @GabrielGGuim
+/Packages/VacancyView/                  @GabrielGGuim
