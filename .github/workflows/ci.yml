@@ -107,6 +107,9 @@ jobs:
           ruby-version: "3.2"
           bundler-cache: true
 
+      - name: Use dummy GoogleService-Info.plist for CI
+        run: cp jobfinder/GoogleService-Info.ci.plist jobfinder/GoogleService-Info.plist
+        
       - name: Install xcodegen
         run: brew install xcodegen
 

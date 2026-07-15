@@ -35,8 +35,8 @@ fastlane/test_output/
 fastlane/.env
 fastlane/.env.*
 
-
 GoogleService-Info.plist
+!GoogleService-Info.ci.plist
 
 .env
 .env.*
