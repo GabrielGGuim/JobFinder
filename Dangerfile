@@ -6,25 +6,31 @@
 
 # ── 0. Guarda de segurança: nunca deixar o comentário passar do limite do GitHub ──
 # O GitHub rejeita comentários com mais de 65536 caracteres (erro 422).
-# warn/fail/message/markdown são implementados em Danger::DangerfileMessagingPlugin
-# (não na classe Dangerfile em si), então o patch precisa ir lá.
-if defined?(Danger::DangerfileMessagingPlugin)
-  Danger::DangerfileMessagingPlugin.class_eval do
-    MAX_COMMENT_LENGTH = 60_000 # margem de segurança abaixo do limite de 65536
+# O Danger agrega TODAS as mensagens (warn/fail/message/markdown) em um único
+# comentário final, então truncar mensagem por mensagem não é suficiente —
+# a SOMA delas ainda pode passar do limite. A forma confiável é truncar o
+# corpo final bem na camada que chama a API do GitHub (Octokit).
+if defined?(Octokit::Client)
+  Octokit::Client.class_eval do
+    MAX_BODY_LENGTH = 65_000 # margem de segurança abaixo do limite real de 65536
 
-    def self.truncate_for_github(msg)
-      return msg unless msg.is_a?(String) && msg.length > MAX_COMMENT_LENGTH
-      msg[0...MAX_COMMENT_LENGTH] + "\n\n... (mensagem truncada, muito longa)"
+    def self.truncate_body_for_github(body)
+      return body unless body.is_a?(String) && body.length > MAX_BODY_LENGTH
+      body[0...MAX_BODY_LENGTH] + "\n\n... (comentário truncado, muito longo para o GitHub)"
     end
 
-    %i[warn fail message markdown].each do |method_name|
+    %i[add_comment update_comment].each do |method_name|
       next unless method_defined?(method_name)
 
       alias_method "original_#{method_name}", method_name
 
-      define_method(method_name) do |msg = nil, **kwargs|
-        msg = self.class.truncate_for_github(msg)
-        send("original_#{method_name}", msg, **kwargs)
+      define_method(method_name) do |*args, **kwargs, &block|
+        # add_comment(repo, number, body, options={}) / update_comment(repo, comment_id, body, options={})
+        # body é sempre o 3º argumento posicional (índice 2)
+        if args[2].is_a?(String)
+          args[2] = self.class.truncate_body_for_github(args[2])
+        end
+        send("original_#{method_name}", *args, **kwargs, &block)
       end
     end
   end
