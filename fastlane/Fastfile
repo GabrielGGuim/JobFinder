@@ -53,11 +53,12 @@ platform :ios do
   # ─────────────────────────────────────────────────────────
   desc "Run unit tests"
   lane :test do
+    bootstrap unless File.exist?(PROJECT)   # já existe essa lógica em build_unsigned, replique aqui
     run_tests(
       project: PROJECT,
       scheme: SCHEME,
       configuration: "Debug",
-      destination: "platform=iOS Simulator,name=iPhone 15",
+      destination: "platform=iOS Simulator,name=iPhone 15,OS=17.5",
       clean: false,
       output_directory: "./fastlane/test_output",
       output_types: "html,junit"

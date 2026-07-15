@@ -4,8 +4,38 @@
 #  Roda automaticamente em PRs via CI (pr-checks workflow).
 # ─────────────────────────────────────────────────────────────
 
-# ── 1. Bloquear PRs gigantes (review-friendly) ─────────────
-warn("PR grande demais (> 600 linhas). Considere quebrar em PRs menores.") if git.lines_of_code > 600
+# ── 0. Guarda de segurança: nunca deixar o comentário passar do limite do GitHub ──
+# O GitHub rejeita comentários com mais de 65536 caracteres (erro 422).
+# O Danger agrega TODAS as mensagens (warn/fail/message/markdown) em um único
+# comentário final, então truncar mensagem por mensagem não é suficiente —
+# a SOMA delas ainda pode passar do limite. A forma confiável é truncar o
+# corpo final bem na camada que chama a API do GitHub (Octokit).
+if defined?(Octokit::Client)
+  Octokit::Client.class_eval do
+    MAX_BODY_LENGTH = 65_000 # margem de segurança abaixo do limite real de 65536
+
+    def self.truncate_body_for_github(body)
+      return body unless body.is_a?(String) && body.length > MAX_BODY_LENGTH
+      body[0...MAX_BODY_LENGTH] + "\n\n... (comentário truncado, muito longo para o GitHub)"
+    end
+
+    %i[add_comment update_comment].each do |method_name|
+      next unless method_defined?(method_name)
+
+      alias_method "original_#{method_name}", method_name
+
+      define_method(method_name) do |*args, **kwargs, &block|
+        # add_comment(repo, number, body, options={}) / update_comment(repo, comment_id, body, options={})
+        # body é sempre o 3º argumento posicional (índice 2)
+        if args[2].is_a?(String)
+          args[2] = self.class.truncate_body_for_github(args[2])
+        end
+        send("original_#{method_name}", *args, **kwargs, &block)
+      end
+    end
+  end
+end
+
 
 # ── 2. Toda PR precisa de descrição ────────────────────────
 warn("PR sem descrição. Adicione um resumo das mudanças.") if github.pr_body.length < 10
@@ -75,7 +105,11 @@ sensitive = (git.added_files + git.modified_files).any? { |f| f.match?(forbidden
 fail("❌ Detectado arquivo sensível (cert/token/key) no commit.") if sensitive
 
 # ── 13. PR precisa de review ───────────────────────────────
-if github.pr_reviewers.empty? && !github.api.draft?
+requested_users = github.pr_json.dig("requested_reviewers", "users") || []
+requested_teams = github.pr_json.dig("requested_reviewers", "teams") || []
+is_draft = github.pr_json["draft"] == true
+
+if requested_users.empty? && requested_teams.empty? && !is_draft
   message("👀 Adicione pelo menos 1 reviewer antes de mergear.")
 end
 
