@@ -1,0 +1,237 @@
+# ─────────────────────────────────────────────────────────────
+#  Fastfile — jobfinder
+#  Estratégia: SEM Apple Developer Program.
+#  IPA sai em ad-hoc (assinado local) ou unsigned (CI default).
+# ─────────────────────────────────────────────────────────────
+
+default_platform(:ios)
+
+# ── Paths / config ─────────────────────────────────────────
+WORKSPACE      = ENV["WORKSPACE_PATH"] || "./jobfinder.xcworkspace"
+PROJECT        = ENV["PROJECT_PATH"]   || "./jobfinder.xcodeproj"
+SCHEME         = ENV["SCHEME"]         || "jobfinder"
+CONFIGURATION  = ENV["CONFIGURATION"]  || "AdHoc"
+EXPORT_METHOD  = ENV["EXPORT_METHOD"]  || "ad-hoc"
+# Quando CODE_SIGNING_ALLOWED=NO o xcodebuild não tenta assinar
+CODE_SIGN_OK   = ENV["CODE_SIGNING_ALLOWED"] || "NO"
+BUILD_DIR      = "./build"
+ARCHIVE_PATH   = "#{BUILD_DIR}/#{SCHEME}.xcarchive"
+IPA_PATH       = "#{BUILD_DIR}/#{SCHEME}.ipa"
+EXPORT_PATH    = "#{BUILD_DIR}/export"
+EXPORT_OPTIONS = "./ci_scripts/ExportOptions.plist"
+
+platform :ios do
+
+  # ─────────────────────────────────────────────────────────
+  #  bootstrap
+  #  Instala deps do CocoaPods/SPM e gera o .xcodeproj
+  #  via XcodeGen. Use na primeira vez / após mudar project.yml.
+  # ─────────────────────────────────────────────────────────
+  desc "Install deps + generate .xcodeproj via XcodeGen"
+  lane :bootstrap do
+    sh("cd .. && bundle install") unless ENV["SKIP_BUNDLE"]
+    sh("cd .. && xcodegen generate") unless ENV["SKIP_XCODEGEN"]
+  end
+
+  # ─────────────────────────────────────────────────────────
+  #  lint
+  #  Roda SwiftLint. Se quebrar, falha a lane.
+  # ─────────────────────────────────────────────────────────
+  desc "Run SwiftLint"
+  lane :lint do
+    swiftlint(
+      mode: :lint,
+      config_file: "./swiftlint.yml",
+      quiet: true,
+      raise_if_swiftlint_error: true
+    )
+  end
+
+  # ─────────────────────────────────────────────────────────
+  #  test
+  #  Roda os testes do scheme (testTargets no project.yml).
+  # ─────────────────────────────────────────────────────────
+  desc "Run unit tests"
+  lane :test do
+    bootstrap unless File.exist?(PROJECT)   # já existe essa lógica em build_unsigned, replique aqui
+    run_tests(
+      project: PROJECT,
+      scheme: SCHEME,
+      configuration: "Debug",
+      destination: "platform=iOS Simulator,name=iPhone 15,OS=17.5",
+      clean: false,
+      output_directory: "./fastlane/test_output",
+      output_types: "html,junit"
+    )
+  end
+
+  # ─────────────────────────────────────────────────────────
+  #  build_unsigned
+  #  Gera um IPA SEM code signing. Funciona em qualquer CI.
+  #  Pode ser instalado no simulador ou extraído para debug.
+  # ─────────────────────────────────────────────────────────
+  desc "Build unsigned IPA (no code signing — for CI without cert)"
+  lane :build_unsigned do
+    bootstrap unless File.exist?(PROJECT)
+
+    sh(%(rm -rf #{BUILD_DIR} && mkdir -p #{BUILD_DIR}))
+
+    xcodebuild(
+      project: PROJECT,
+      scheme: SCHEME,
+      configuration: CONFIGURATION,
+      sdk: "iphoneos",
+      destination: "generic/platform=iOS",
+      archive: true,
+      archive_path: ARCHIVE_PATH,
+      clean: true,
+      output_directory: BUILD_DIR,
+      output_name: SCHEME,
+      CODE_SIGNING_ALLOWED: "NO",
+      CODE_SIGNING_REQUIRED: "NO",
+      CODE_SIGN_IDENTITY: "",
+      CODE_SIGN_STYLE: "Manual",
+      DEVELOPMENT_TEAM: "",
+      MARKETING_VERSION: ENV["MARKETING_VERSION"] || "1.0.0",
+      CURRENT_PROJECT_VERSION: ENV["BUILD_NUMBER"]   || "1"
+    )
+
+    # Empacota o .app que veio do archive em um .ipa manualmente,
+    # já que -exportArchive exige signing válido.
+    ipa_unsigned
+  end
+
+  # ─────────────────────────────────────────────────────────
+  #  build_ipa
+  #  Gera IPA assinado ad-hoc. Requer:
+  #    • CODE_SIGNING_ALLOWED=YES
+  #    • um certificado Apple Development / iPhone Developer
+  #      instalado no keychain do runner
+  #  Sem cert, falha — caia pra build_unsigned.
+  # ─────────────────────────────────────────────────────────
+  desc "Build ad-hoc signed IPA (requires Apple Dev cert locally)"
+  lane :build_ipa do
+    bootstrap unless File.exist?(PROJECT)
+
+    sh(%(rm -rf #{BUILD_DIR} && mkdir -p #{BUILD_DIR} #{EXPORT_PATH}))
+
+    xcodebuild(
+      project: PROJECT,
+      scheme: SCHEME,
+      configuration: CONFIGURATION,
+      sdk: "iphoneos",
+      destination: "generic/platform=iOS",
+      archive: true,
+      archive_path: ARCHIVE_PATH,
+      clean: true,
+      CODE_SIGNING_ALLOWED: "YES",
+      CODE_SIGNING_REQUIRED: "YES",
+      CODE_SIGN_IDENTITY: ENV["CODE_SIGN_IDENTITY"] || "Apple Development",
+      CODE_SIGN_STYLE: "Manual",
+      DEVELOPMENT_TEAM: ENV["DEVELOPMENT_TEAM"] || "",
+      MARKETING_VERSION: ENV["MARKETING_VERSION"] || "1.0.0",
+      CURRENT_PROJECT_VERSION: ENV["BUILD_NUMBER"]   || "1"
+    )
+
+    export_options = EXPORT_OPTIONS
+
+    # exportArchive gera o .ipa (assinado ad-hoc)
+    xcodebuild(
+      project: PROJECT,
+      scheme: SCHEME,
+      configuration: CONFIGURATION,
+      archive_path: ARCHIVE_PATH,
+      export_archive: true,
+      export_path: EXPORT_PATH,
+      export_options_plist: export_options,
+      output_directory: BUILD_DIR,
+      output_name: SCHEME
+    )
+
+    UI.success("✅ IPA gerado em #{IPA_PATH}")
+  end
+
+  # ─────────────────────────────────────────────────────────
+  #  release
+  #  Bump de versão (patch / minor / major) + tag git + push.
+  #  Use em main, depois de merged develop.
+  # ─────────────────────────────────────────────────────────
+  desc "Bump version, create tag and push"
+  lane :release do |options|
+    bump_type = options[:bump] || ENV["BUMP_TYPE"] || "patch"
+    version   = options[:version]
+
+    if version.nil?
+      current = last_git_tag(pattern: "v*") || "v0.0.0"
+      UI.important("Última tag: #{current}")
+      version = bump_version(current.gsub("v", ""), bump_type)
+    end
+
+    UI.important("Nova versão: #{version}")
+
+    # Sanidade: estamos em main?
+    ensure_git_status_clean
+    ensure_git_branch(branch: "main")
+
+    # Atualiza MARKETING_VERSION no project.yml
+    update_version_in_project_yml(version)
+
+    # Atualiza CURRENT_PROJECT_VERSION (build number)
+    build_number = number_of_commits
+    update_build_number_in_project_yml(build_number)
+
+    # Commit + tag + push
+    git_add(path: ["project.yml"])
+    git_commit(path: ["project.yml"], message: "chore(release): bump to v#{version}")
+    add_git_tag(tag: "v#{version}")
+    push_to_git_remote
+
+    UI.success("🏷  Tag v#{version} enviada.")
+  end
+
+  # ─────────────────────────────────────────────────────────
+  #  Helpers privados
+  # ─────────────────────────────────────────────────────────
+
+  # Empacota um .app em .ipa sem precisar de exportArchive.
+  # Estrutura mínima: Payload/<app>.zip → renomeia pra .ipa.
+  private_lane :ipa_unsigned do
+    app_path = File.join(ARCHIVE_PATH, "Products", "Applications", "#{SCHEME}.app")
+    unless File.exist?(app_path)
+      UI.user_error!("App não encontrado em #{app_path}")
+    end
+
+    payload_dir = File.join(BUILD_DIR, "Payload")
+    sh("rm -rf #{payload_dir} && mkdir -p #{payload_dir}")
+    sh("cp -R #{app_path} #{payload_dir}/")
+
+    Dir.chdir(BUILD_DIR) do
+      sh("zip -qr #{SCHEME}.ipa Payload/")
+    end
+
+    UI.success("📦 IPA (unsigned) gerado em #{IPA_PATH}")
+  end
+
+  # Bump semântico simples
+  def bump_version(current, type)
+    major, minor, patch = current.split(".").map(&:to_i)
+    case type
+    when "major" then "#{major + 1}.0.0"
+    when "minor" then "#{major}.#{minor + 1}.0"
+    else              "#{major}.#{minor}.#{patch + 1}"
+    end
+  end
+
+  # Atualiza MARKETING_VERSION dentro de project.yml
+  def update_version_in_project_yml(new_version)
+    text = File.read("../project.yml")
+    new_text = text.gsub(/MARKETING_VERSION:\s*".*?"/, "MARKETING_VERSION: \"#{new_version}\"")
+    File.write("../project.yml", new_text)
+  end
+
+  def update_build_number_in_project_yml(build_number)
+    text = File.read("../project.yml")
+    new_text = text.gsub(/CURRENT_PROJECT_VERSION:\s*"\d+"/, "CURRENT_PROJECT_VERSION: \"#{build_number}\"")
+    File.write("../project.yml", new_text)
+  end
+end

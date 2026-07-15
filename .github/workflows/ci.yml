@@ -1,0 +1,162 @@
+# ─────────────────────────────────────────────────────────────
+#  CI — pull_request + push em develop/main
+#  Roda: SwiftLint → Tests (iOS simulator) → Danger (PRs only)
+#  Sem Apple Developer: testes rodam em simulator, sem signing.
+# ─────────────────────────────────────────────────────────────
+name: CI
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+
+# Cancela runs anteriores na mesma PR/branch (economia)
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  SCHEME: jobfinder
+  CONFIGURATION: Debug
+  MARKETING_VERSION: 1.0.0
+  CURRENT_PROJECT_VERSION: "1"
+  CODE_SIGNING_ALLOWED: NO
+  CODE_SIGNING_REQUIRED: NO
+  LC_ALL: en_US.UTF-8
+  LANG: en_US.UTF-8
+
+jobs:
+  # ─────────────────────────────────────────────────────────
+  #  1) Lint — SwiftLint
+  # ─────────────────────────────────────────────────────────
+  lint:
+    name: SwiftLint
+    runs-on: macos-14
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode 16.2
+        run: sudo xcode-select -s /Applications/Xcode_16.2.app/Contents/Developer
+
+      - name: Cache SwiftLint
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/SwiftLint
+          key: swiftlint-${{ runner.os }}-${{ hashFiles('.swiftlint.yml', '**/*.swift') }}
+          restore-keys: |
+            swiftlint-${{ runner.os }}-
+
+      - name: Install SwiftLint
+        run: |
+          if ! command -v swiftlint >/dev/null; then
+            brew install swiftlint
+          fi
+          swiftlint --version
+
+      - name: Run SwiftLint
+        run: swiftlint lint --reporter github-actions-logging --config swiftlint.yml
+
+  # ─────────────────────────────────────────────────────────
+  #  2) Test — roda test lanes do Fastlane
+  # ─────────────────────────────────────────────────────────
+  test:
+    name: Unit Tests
+    runs-on: macos-14
+    needs: lint
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode 16.2
+        run: sudo xcode-select -s /Applications/Xcode_16.2.app/Contents/Developer
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Cache DerivedData
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Developer/Xcode/DerivedData
+          key: derived-${{ runner.os }}-${{ hashFiles('**/*.swift', 'project.yml', '**/Package.swift') }}
+          restore-keys: |
+            derived-${{ runner.os }}-
+
+      - name: Cache SPM
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/org.swift.swiftpm
+          key: spm-${{ runner.os }}-${{ hashFiles('**/Package.swift', '**/Package.resolved') }}
+          restore-keys: |
+            spm-${{ runner.os }}-
+
+      - name: Cache Bundler
+        uses: actions/cache@v4
+        with:
+          path: vendor/bundle
+          key: bundle-${{ runner.os }}-${{ hashFiles('**/Gemfile*') }}
+          restore-keys: |
+            bundle-${{ runner.os }}-
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.2"
+          bundler-cache: true
+
+      - name: Use dummy GoogleService-Info.plist for CI
+        run: cp jobfinder/GoogleService-Info.ci.plist jobfinder/GoogleService-Info.plist
+        
+      - name: Install xcodegen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Run tests (Fastlane)
+        env:
+          SCHEME: ${{ env.SCHEME }}
+          CONFIGURATION: ${{ env.CONFIGURATION }}
+          FASTLANE_XCODEBUILD_SETTINGS_TIMEOUT: 60
+          FASTLANE_XCODEBUILD_SETTINGS_RETRIES: 5
+        run: bundle exec fastlane ios test
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: fastlane/test_output/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  danger:
+      name: Danger
+      runs-on: ubuntu-latest
+      needs: [lint, test]
+      if: github.event_name == 'pull_request'
+      timeout-minutes: 5
+      permissions:
+        contents: read
+        pull-requests: write
+        issues: write
+        statuses: write
+      steps:
+        - name: Checkout
+          uses: actions/checkout@v4
+          with:
+            fetch-depth: 0
+
+        - name: Set up Ruby
+          uses: ruby/setup-ruby@v1
+          with:
+            ruby-version: "3.2"
+            bundler-cache: true
+
+        - name: Run Danger
+          env:
+            DANGER_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          run: bundle exec danger --fail-on-errors=true
