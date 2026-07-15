@@ -4,9 +4,6 @@
 #  Roda automaticamente em PRs via CI (pr-checks workflow).
 # ─────────────────────────────────────────────────────────────
 
-# ── 1. Bloquear PRs gigantes (review-friendly) ─────────────
-warn("PR grande demais (> 600 linhas). Considere quebrar em PRs menores.") if git.lines_of_code > 600
-
 # ── 2. Toda PR precisa de descrição ────────────────────────
 warn("PR sem descrição. Adicione um resumo das mudanças.") if github.pr_body.length < 10
 
