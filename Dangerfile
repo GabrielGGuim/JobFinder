@@ -4,6 +4,30 @@
 #  Roda automaticamente em PRs via CI (pr-checks workflow).
 # ─────────────────────────────────────────────────────────────
 
+# ── 0. Guarda de segurança: nunca deixar o comentário passar do limite do GitHub ──
+# O GitHub rejeita comentários com mais de 65536 caracteres (erro 422).
+# Isso intercepta warn/fail/message/markdown e trunca automaticamente
+# qualquer mensagem grande demais, seja ela gerada pelas regras abaixo
+# ou por algum plugin (danger-swiftlint, danger-xcov, etc via Pluginfile).
+MAX_COMMENT_LENGTH = 60_000 # margem de segurança abaixo do limite de 65536
+
+module Danger
+  class Dangerfile
+    %i[warn fail message markdown].each do |method_name|
+      original = instance_method(method_name)
+      define_method(method_name) do |msg, **kwargs|
+        if msg.is_a?(String) && msg.length > MAX_COMMENT_LENGTH
+          msg = msg[0...MAX_COMMENT_LENGTH] + "\n\n... (mensagem truncada, muito longa)"
+        end
+        original.bind(self).call(msg, **kwargs)
+      end
+    end
+  end
+end
+
+# ── 1. Bloquear PRs gigantes (review-friendly) ─────────────
+warn("PR grande demais (> 600 linhas). Considere quebrar em PRs menores.") if git.lines_of_code > 600
+
 # ── 2. Toda PR precisa de descrição ────────────────────────
 warn("PR sem descrição. Adicione um resumo das mudanças.") if github.pr_body.length < 10
 
