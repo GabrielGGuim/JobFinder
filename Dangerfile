@@ -36,6 +36,7 @@ if defined?(Octokit::Client)
   end
 end
 
+
 # ── 2. Toda PR precisa de descrição ────────────────────────
 warn("PR sem descrição. Adicione um resumo das mudanças.") if github.pr_body.length < 10
 
@@ -104,7 +105,11 @@ sensitive = (git.added_files + git.modified_files).any? { |f| f.match?(forbidden
 fail("❌ Detectado arquivo sensível (cert/token/key) no commit.") if sensitive
 
 # ── 13. PR precisa de review ───────────────────────────────
-if github.pr_reviewers.empty? && !github.api.draft?
+requested_users = github.pr_json.dig("requested_reviewers", "users") || []
+requested_teams = github.pr_json.dig("requested_reviewers", "teams") || []
+is_draft = github.pr_json["draft"] == true
+
+if requested_users.empty? && requested_teams.empty? && !is_draft
   message("👀 Adicione pelo menos 1 reviewer antes de mergear.")
 end
 
