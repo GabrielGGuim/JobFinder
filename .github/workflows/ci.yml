@@ -134,24 +134,28 @@ jobs:
           retention-days: 7
 
   danger:
-    name: Danger
-    runs-on: ubuntu-latest
-    needs: [lint, test]
-    if: github.event_name == 'pull_request'
-    timeout-minutes: 5
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+      name: Danger
+      runs-on: ubuntu-latest
+      needs: [lint, test]
+      if: github.event_name == 'pull_request'
+      timeout-minutes: 5
+      permissions:
+        contents: read
+        pull-requests: write
+        issues: write
+      steps:
+        - name: Checkout
+          uses: actions/checkout@v4
+          with:
+            fetch-depth: 0
 
-      - name: Set up Ruby
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: "3.2"
-          bundler-cache: true
+        - name: Set up Ruby
+          uses: ruby/setup-ruby@v1
+          with:
+            ruby-version: "3.2"
+            bundler-cache: true
 
-      - name: Run Danger
-        env:
-          DANGER_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: bundle exec danger --fail-on-errors=true
+        - name: Run Danger
+          env:
+            DANGER_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          run: bundle exec danger --fail-on-errors=true
