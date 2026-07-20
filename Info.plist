@@ -31,7 +31,7 @@
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>
-	<string>DetranLaunchScreen</string>
+	<string>LaunchScreen</string>
 	<key>UIRequiresFullScreen</key>
 	<false/>
 	<key>UIRequiresPersistentWiFi</key>

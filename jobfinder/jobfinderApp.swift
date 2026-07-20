@@ -12,19 +12,26 @@ import NetworkLayer
 import FirebaseData
 import FirebaseCore
 import Settings
+import MarketPulseModule
 
 @main
 struct JobFinderApp: App {
+
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
 
+    // Coordinator raiz. A App só conhece o Root; quem decide
+    // o que mostrar (TabBar, Onboarding, etc.) é o coordinator.
+    @StateObject private var rootCoordinator = AppCoordinator.Root()
+    
     init() {
         Config.environment = .homolog
         NetworkLayer.shared.showLog = true
         FontsRegister.registerFonts()
     }
+
     var body: some Scene {
         WindowGroup {
-            VacancyView()
+            RootView(coordinator: rootCoordinator)
         }
     }
 }

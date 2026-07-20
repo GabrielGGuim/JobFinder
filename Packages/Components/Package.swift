@@ -55,7 +55,6 @@ let package = Package(
         .target(
             name: "Extensions"
         ),
-        
         .testTarget(
             name: "ExtensionsTests",
             dependencies: ["Extensions"]

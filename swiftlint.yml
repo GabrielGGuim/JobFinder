@@ -1,5 +1,4 @@
 disabled_rules:
-  - trailing_whitespace
   - nested_types
   
 opt_in_rules:

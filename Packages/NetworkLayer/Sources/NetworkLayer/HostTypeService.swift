@@ -8,8 +8,6 @@
 
 import Foundation
 
-import Foundation
-
 public protocol HostTypeService {
     func getHost() async -> String
     func getDescription() async -> [String: Any]

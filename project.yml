@@ -24,7 +24,6 @@ schemes:
       config: Debug
       targets:
         - jobfinderTests
-        # - jobfinderUITests   # se também tiver testes de UI
     run:
       config: Debug
 
@@ -65,6 +64,8 @@ packages:
     path: Packages/ReduxCore
   VacancyView:
     path: Packages/VacancyView
+  MarketPulse:
+    path: Packages/MarketPulse
 
 targets:
 
@@ -88,6 +89,7 @@ targets:
       - path: jobfinder
         excludes:
           - "**/.DS_Store"
+          - "Preview Content/**"
 
     postCompileScripts:
       - name: SwiftLint
@@ -115,6 +117,8 @@ targets:
         product: ReduxCore
       - package: VacancyView
         product: VacancyModule
+      - package: MarketPulse
+        product: MarketPulseModule
 
     info:
       path: Info.plist
@@ -130,7 +134,7 @@ targets:
         UIUserInterfaceStyle: Light
         UIViewControllerBasedStatusBarAppearance: false
         UIStatusBarStyle: UIStatusBarStyleBackContent
-        UILaunchStoryboardName: DetranLaunchScreen
+        UILaunchStoryboardName: LaunchScreen
         ITSAppUsesNonExemptEncryption: false
         NSAllowsArbitraryLoads: true
         UIRequiresFullScreen: false
