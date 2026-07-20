@@ -22,6 +22,7 @@ public struct RobotoFont: ViewModifier {
         case white
         case gray
         case secondGray
+        case blue
         case custom(Color)
         
         public var color: Color {
@@ -34,6 +35,8 @@ public struct RobotoFont: ViewModifier {
                 return Color("Roboto.Gray", bundle: .module)
             case .secondGray:
                 return Color("Roboto.SecondGray", bundle: .module)
+            case .blue:
+                return Color("Roboto.Blue", bundle: .module)
             case .custom(let customColor):
                 return customColor
             }
@@ -84,7 +87,7 @@ extension View {
 }
 
 extension Text {
-    public func openSansFontText(
+    public func robotoFontText(
         _ fontWeight: RobotoFont.RobotoType,
         size: CGFloat,
         color: RobotoFont.RobotoColor
