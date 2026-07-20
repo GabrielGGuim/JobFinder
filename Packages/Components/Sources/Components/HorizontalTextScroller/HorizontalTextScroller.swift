@@ -49,7 +49,13 @@ public struct HorizontalTextScroller<Item: Hashable>: View {
             .padding(.horizontal, 13)
             .padding(.vertical, 6)
             .background(
-                isSelectedClosure(item) ? Color("HorizontalView.Background.Selected", bundle: .module) : Color("HorizontalView.Background", bundle: .module)
+                isSelectedClosure(item) ? Color(
+                    "HorizontalView.Background.Selected",
+                    bundle: .module
+                ) : Color(
+                    "HorizontalView.Background",
+                    bundle: .module
+                )
             )
             .clipShape(Capsule())
             .contentShape(Capsule())
